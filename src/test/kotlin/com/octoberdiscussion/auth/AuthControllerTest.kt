@@ -124,6 +124,21 @@ class AuthControllerTest {
     }
 
     @Test
+    fun `an expired session is not accepted`() {
+        val userId = seedUser("Jane", "correct-code")
+        val cookie = login("correct-code")
+        jdbcTemplate.update("UPDATE session SET expires_at = '2000-01-01 00:00:00' WHERE user_id = ?", userId)
+
+        client
+            .get()
+            .uri("/api/me")
+            .cookie(SESSION_COOKIE_NAME, cookie)
+            .exchange()
+            .expectStatus()
+            .isUnauthorized
+    }
+
+    @Test
     fun `logout clears the session and the cookie stops working`() {
         seedUser("Jane", "correct-code")
         val cookie = login("correct-code")
