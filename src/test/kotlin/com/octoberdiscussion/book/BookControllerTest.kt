@@ -125,6 +125,7 @@ class BookControllerTest {
         val thirdId = insertTopic(bookId, "Third", position = 2)
         val firstId = insertTopic(bookId, "First", position = 0)
         val secondId = insertTopic(bookId, "Second", position = 1)
+        val closedId = insertTopic(bookId, "Closed Topic", position = 3, isClosed = true)
 
         val expected =
             """
@@ -135,7 +136,8 @@ class BookControllerTest {
               "topics": [
                 { "id": $firstId, "title": "First", "position": 0, "isClosed": false },
                 { "id": $secondId, "title": "Second", "position": 1, "isClosed": false },
-                { "id": $thirdId, "title": "Third", "position": 2, "isClosed": false }
+                { "id": $thirdId, "title": "Third", "position": 2, "isClosed": false },
+                { "id": $closedId, "title": "Closed Topic", "position": 3, "isClosed": true }
               ]
             }
             """.trimIndent()
