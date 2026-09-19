@@ -46,3 +46,8 @@ Prefer the standard library over a dependency when the stdlib already covers it 
 - Package structure: `com.<org>.<project>.<feature>`, feature-first rather than layer-first (`user/`, not `controllers/` + `services/` + `models/` split across the whole app).
 - Run `./gradlew ktlintFormat` (or the project's configured formatter) before considering a change done, if configured.
 - Run `./gradlew test` before reporting a task complete.
+
+## UI conventions
+
+- Buttons in the same row/group (e.g. header actions) must share a consistent, equal height — never let one grow taller than its neighbors because of icon/emoji content inside it. Set an explicit `height` (or `min-height`) plus `display: inline-flex; align-items: center;` on the shared button style so larger inline content (icons, emoji) is vertically centered instead of stretching the box.
+- Prefer shorter, wider buttons over taller ones — accommodate extra content (icons, longer labels) with horizontal padding, not additional height.

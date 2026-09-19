@@ -165,11 +165,15 @@ a {
 
 .avatar-button,
 .user-info button {
+  display: inline-flex;
+  align-items: center;
+  height: 2.25rem;
   background: var(--surface-alt);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 0.4rem 0.7rem;
+  padding: 0 0.7rem;
   color: var(--text);
+  line-height: 1;
 }
 
 .avatar-button:hover,
