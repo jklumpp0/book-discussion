@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DB_PATH: /app/data/october-discussion.db
+    volumes:
+      - october-discussion-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  october-discussion-data:
