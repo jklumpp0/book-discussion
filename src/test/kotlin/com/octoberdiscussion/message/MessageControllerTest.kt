@@ -169,6 +169,67 @@ class MessageControllerTest {
     }
 
     @Test
+    fun `GET returns a flat list ordered by creation, with replies inline carrying their parentId`() {
+        val userId = seedUser("Alice")
+        val topicId = seedTopic()
+
+        val topLevelA =
+            post(topicId, userId, CreateMessageRequest(body = "top level A"))
+                .expectBody(MessageResponse::class.java)
+                .returnResult()
+                .responseBody!!
+        val replyToA =
+            post(topicId, userId, CreateMessageRequest(body = "reply to A", parentId = topLevelA.id))
+                .expectBody(MessageResponse::class.java)
+                .returnResult()
+                .responseBody!!
+        val topLevelB =
+            post(topicId, userId, CreateMessageRequest(body = "top level B"))
+                .expectBody(MessageResponse::class.java)
+                .returnResult()
+                .responseBody!!
+
+        val list =
+            get(topicId, userId)
+                .expectStatus()
+                .isOk
+                .expectBodyList(MessageResponse::class.java)
+                .returnResult()
+                .responseBody!!
+
+        assertEquals(listOf(topLevelA.id, replyToA.id, topLevelB.id), list.map { it.id })
+        assertNull(list[0].parentId)
+        assertEquals(topLevelA.id, list[1].parentId)
+        assertNull(list[2].parentId)
+    }
+
+    @Test
+    fun `PATCH without a session returns 401`() {
+        val userId = seedUser("Alice")
+        val topicId = seedTopic()
+        val created =
+            post(topicId, userId, CreateMessageRequest(body = "original"))
+                .expectBody(MessageResponse::class.java)
+                .returnResult()
+                .responseBody!!
+
+        patch(created.id, userId = null, UpdateMessageRequest(body = "edited")).expectStatus().isUnauthorized
+    }
+
+    @Test
+    fun `DELETE without a session returns 401`() {
+        val userId = seedUser("Alice")
+        val topicId = seedTopic()
+        val created =
+            post(topicId, userId, CreateMessageRequest(body = "original"))
+                .expectBody(MessageResponse::class.java)
+                .returnResult()
+                .responseBody!!
+
+        delete(created.id, userId = null).expectStatus().isUnauthorized
+    }
+
+    @Test
     fun `replying to a top-level message is accepted`() {
         val userId = seedUser("Alice")
         val topicId = seedTopic()
