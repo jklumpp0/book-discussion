@@ -13,7 +13,7 @@ Scale is 10s of users, fixed/admin-managed membership, no self-signup. Prioritie
 | Deployment | Docker / docker-compose, `restart: unless-stopped`, SQLite file on a named volume |
 | Login | Simple shared access code per user (not WebAuthn), hashed at rest, opaque session cookie |
 | Live updates | None — manual page refresh |
-| Avatar | Small preset avatar set (no upload, no external URL) |
+| Avatar | Small preset avatar set (no upload, no external URL) — final list: `fox, owl, deer, bear, raccoon, hedgehog` (see `docs/AVATARS.md`) |
 | Thread depth | One level only — a message's `parent_id` may only point at a top-level message |
 | Edit/delete | Both allowed, own messages only; delete is soft-delete (`[deleted]`) |
 | Admin workflow | In-app admin web UI (manage users/access codes, set current book, add/close topics) |
@@ -79,7 +79,11 @@ Only one `book` row should have `is_current = 1` at a time (enforced in applicat
 
 ## API contract
 
-Wave 0 must produce the full contract as `docs/API.md` — every endpoint, method, path, request/response JSON shape, and status codes — before any other work starts, since it's what lets groups A–D build in parallel without reconciliation. High-level shape to expand there:
+`docs/API.md` is the authoritative, current contract — this section is the historical Wave 0 sketch, kept for context. It's since grown three endpoints Wave 0 didn't anticipate:
+
+- `GET /api/admin/users`, `GET /api/admin/books`, `GET /api/admin/books/{bookId}/topics` — added in Wave 2 once building the admin UI made it obvious the original contract had create/delete/activate-by-id for everything but no way to *list* what already exists. Lesson for next time: an admin-facing CRUD contract needs at least one list endpoint per manageable resource from the start.
+
+Original Wave 0 sketch (superseded by `docs/API.md`, left here for the historical record):
 
 - `POST /api/session` (body: `{accessCode}`) → 200 + `Set-Cookie` + user JSON, or 401
 - `DELETE /api/session` → 204, clears cookie
@@ -115,3 +119,6 @@ Wave 0 must produce the full contract as `docs/API.md` — every endpoint, metho
 - Build plugins needed beyond the Kotlin ones: `org.springframework.boot` (provides `bootJar`/`bootRun`) and `io.spring.dependency-management` (or Gradle's native platform BOM import) to pull in Spring Boot's curated dependency versions — pin a current Spring Boot 3.x version compatible with Kotlin 2.x and JDK 21.
 - **Gotcha (resolved):** `org.jlleitschuh.gradle.ktlint` 12.1.2 fails against Kotlin 2.1.20 with `Class org.jetbrains.kotlin.lexer.KtTokens does not have member field ... HEADER_KEYWORD` (a bundled-ktlint/Kotlin-PSI version mismatch), regardless of whether an explicit `ktlint { version.set(...) }` is set. Fixed by bumping the plugin to **14.2.0** (latest as of this build) and not pinning an explicit ktlint engine version — let the plugin use its own bundled-compatible version.
 - **Gotcha (resolved):** the `org.xerial:sqlite-jdbc` driver does not create the DB file's parent directory — a fresh checkout with no `data/` directory fails at startup with `path to '...': '...' does not exist`. Fixed in `Application.kt`'s `main()` by `File(dbPath).absoluteFile.parentFile?.mkdirs()` before `runApplication(...)`, since this must happen before Spring builds the DataSource bean (too early for an `ApplicationRunner`). Not an issue in the eventual Docker/compose deployment (the named volume's mount point always exists), but needed for local `bootRun`/bare-metal use.
+- **Gotcha (resolved, Wave 1):** Jackson's JavaBean introspection strips the `is` prefix from a Kotlin `val isClosed: Boolean` property's generated `isClosed()` getter, so it serializes as `"closed"` instead of `"isClosed"`. Fixed per-field with `@get:JsonProperty("isClosed")` (see `book/Models.kt`). Caught only because the test used a `JsonCompareMode.STRICT` full-body assertion rather than a `jsonPath` spot-check on just the value.
+- **Gotcha (resolved, Wave 1):** `@WebFluxTest` component-scans *every* `@Component WebFilter` in the application context, not just the controller named in the slice annotation — adding `SessionAuthWebFilter` (Group A) broke the pre-existing `HealthControllerTest` (Wave 0) this way. Fixed there with a nested `@TestConfiguration` + `mockk(relaxed = true)` bean, `@Import`-ed into the test. Every other controller test in this project instead uses full `@SpringBootTest(webEnvironment = RANDOM_PORT)` + `WebTestClient`, which sidesteps the problem entirely (real beans, no slice-scanning surprise) and is the pattern to default to for new controller tests.
+- **Gotcha (Wave 2, testing methodology, not an app bug):** the delete-message/delete-user/reset-code UI flows use native `confirm()`. Clicking "Delete" via Claude-in-Chrome browser automation froze the tab — native dialogs block further CDP input and JS evaluation until a human dismisses them. Worked around by verifying those specific flows with direct `curl` calls against the API instead of scripting the click. Real users clicking normally never hit this.

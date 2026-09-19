@@ -22,8 +22,8 @@ All five groups were implemented in parallel (isolated git worktrees), merged wi
       AC met: `PATCH` persists across re-`GET`. Preset avatar list: `fox, owl, deer, bear, raccoon, hedgehog`.
 - [x] Admin: create user (+ one-time code), delete user, reset code
       AC met: reset code invalidates prior sessions immediately (tested).
-- Known gap: `docs/API.md` references a `docs/AVATARS.md` file "once Group D defines it" — that file was never created; the canonical avatar list currently lives only in `Avatars.kt` (backend) and `js/avatars.js` (frontend, independently matching). Consider adding `docs/AVATARS.md` or removing the dangling reference.
-- Known gap: bootstrap-seeded/pre-feature users get `avatarKey: "default"`, which is intentionally *not* in the preset list — frontend must render a fallback for unrecognized keys (confirmed Group D's picker doesn't yet handle this case explicitly).
+- ~~Known gap: `docs/AVATARS.md` dangling reference~~ — **resolved**: `docs/AVATARS.md` created, documenting the canonical list and the `avatar_key` column's `'default'` fallback; `docs/API.md`'s `PATCH /api/me` section now points to it correctly.
+- Known gap (still open, low priority): bootstrap-seeded/pre-feature users get `avatarKey: "default"`, which is intentionally *not* in the preset list. The frontend's `avatarGlyph()` already falls back to a generic glyph for any unrecognized key (confirmed in `js/avatars.js`), so this renders fine — but such a user has no obvious visual cue prompting them to pick a real avatar. Cosmetic only.
 
 ### Group B — Book & Topic — ✅ done (commits `8b9c338`, `cddc107`)
 - [x] `GET /api/book/current` (+ its topics)
@@ -71,7 +71,7 @@ Also added `GET /api/admin/users`, `GET /api/admin/books`, `GET /api/admin/books
       AC met: verified live in two separate logged-in browser tabs (Admin + a real second user "Priya") — posted, replied (one-level threading rendered correctly indented), edited (with "(edited)" marker), and soft-deleted (shows "[deleted]") messages; confirmed Priya sees no Edit/Delete on Admin's messages (UI-hidden) and confirmed via direct `curl` with her session cookie that the server also rejects it with `403` (not just UI hiding); zero console errors throughout.
       Bonus verification beyond the stated AC: re-ran the XSS payload (`<img src=x onerror=alert(1)>`) through the real posting UI — rendered as inert text, no alert fired.
 - **Gotcha hit and noted for future browser-automation sessions**: the delete-message/delete-user handlers use native `confirm()`. Clicking Delete via Chrome automation froze the tab (native dialogs block CDP input/eval) until manually dismissed. Not an app bug — real users clicking normally are unaffected — but avoid scripting clicks on `confirm()`-guarded buttons in future automated passes; verify those via `curl` instead (as done here for delete-user/reset-code).
-- [ ] Resolve the `docs/AVATARS.md` dangling reference (either create the file or update `docs/API.md`'s pointer).
+- [x] Resolve the `docs/AVATARS.md` dangling reference — created the file; `docs/API.md` updated to point to it.
 
 ## Wave 3 — Hardening & acceptance
 - [x] Security pass: hashed codes at rest, cookie flags, admin routes role-gated, XSS test re-verified — re-verified after Wave 2 landed: server-side `403` confirmed via `curl` (not just UI hiding) for both non-author edit/delete and non-admin admin-route access; XSS payload re-checked through the real posting UI end-to-end.

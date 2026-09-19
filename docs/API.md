@@ -32,7 +32,7 @@ Request (all fields optional):
 ```json
 { "displayName": "string", "avatarKey": "string" }
 ```
-`avatarKey` must be one of the fixed preset set (see `docs/AVATARS.md` once Group D defines it, or the constant list in code). Invalid key → `400 Bad Request`. Response `200 OK` with the updated user, same shape as above.
+`avatarKey` must be one of the fixed preset set (see `docs/AVATARS.md`). Invalid key → `400 Bad Request`. Response `200 OK` with the updated user, same shape as above.
 
 ## Book & topics
 
@@ -106,7 +106,7 @@ Response `200 OK`:
 Never includes access codes or hashes.
 
 ### `POST /api/admin/users`
-Request:
+Request (`avatarKey` must be one of the presets in `docs/AVATARS.md`, `role` one of `member`/`admin` — invalid values → `400`):
 ```json
 { "displayName": "string", "avatarKey": "string", "role": "member" }
 ```
