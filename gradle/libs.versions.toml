@@ -1,0 +1,32 @@
+[versions]
+kotlin = "2.1.20"
+kotlinx-coroutines = "1.9.0"
+spring-boot = "3.4.1"
+spring-dependency-management = "1.1.7"
+kotlin-logging = "7.0.3"
+sqlite-jdbc = "3.47.1.0"
+bcrypt = "0.10.2"
+commonmark = "0.22.0"
+mockk = "1.13.13"
+ktlint-gradle = "14.2.0"
+
+[libraries]
+# Versions below are omitted where Spring Boot's dependency-management BOM controls them.
+spring-boot-starter-webflux = { module = "org.springframework.boot:spring-boot-starter-webflux" }
+spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin" }
+kotlinx-coroutines-reactor = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactor", version.ref = "kotlinx-coroutines" }
+reactor-test = { module = "io.projectreactor:reactor-test" }
+kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
+bcrypt = { module = "at.favre.lib:bcrypt", version.ref = "bcrypt" }
+commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-gradle" }

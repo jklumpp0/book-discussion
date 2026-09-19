@@ -1,0 +1,14 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:sqlite:${DB_PATH:./data/october-discussion.db}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      # SQLite allows only one writer at a time; a single pooled connection
+      # avoids "database is locked" errors under this app's small load.
+      maximum-pool-size: 1
+  sql:
+    init:
+      mode: always
