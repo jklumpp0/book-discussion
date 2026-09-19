@@ -35,6 +35,25 @@ class BookRepository(
             CurrentBookResponse(id = book.id, title = book.title, author = book.author, topics = topics)
         }
 
+    suspend fun findAllBooks(): List<Book> =
+        withContext(Dispatchers.IO) {
+            jdbcTemplate.query(
+                "SELECT id, title, author, is_current, created_at FROM book ORDER BY created_at DESC, id DESC",
+                bookRowMapper,
+            )
+        }
+
+    suspend fun findTopicsByBookId(bookId: Int): List<Topic>? =
+        withContext(Dispatchers.IO) {
+            val bookExists = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM book WHERE id = ?", Int::class.java, bookId) ?: 0
+            if (bookExists == 0) return@withContext null
+            jdbcTemplate.query(
+                "SELECT id, book_id, title, position, is_closed, created_at FROM topic WHERE book_id = ? ORDER BY position",
+                topicRowMapper,
+                bookId,
+            )
+        }
+
     suspend fun createBook(
         title: String,
         author: String?,

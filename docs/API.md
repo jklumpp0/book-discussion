@@ -96,6 +96,15 @@ Soft-deletes your own message (sets `deletedAt`, clears `body`). `403 Forbidden`
 
 ## Admin — Users
 
+### `GET /api/admin/users`
+_Added in Wave 2 — the admin UI needs a way to list existing users, which the original contract omitted._
+
+Response `200 OK`:
+```json
+[ { "id": 1, "displayName": "Admin", "avatarKey": "default", "role": "admin" } ]
+```
+Never includes access codes or hashes.
+
 ### `POST /api/admin/users`
 Request:
 ```json
@@ -120,6 +129,15 @@ Response `200 OK`:
 
 ## Admin — Books
 
+### `GET /api/admin/books`
+_Added in Wave 2 — lists every book (not just the current one) so the admin UI can switch between them._
+
+Response `200 OK`:
+```json
+[ { "id": 1, "title": "The Hobbit", "author": "J.R.R. Tolkien", "isCurrent": true, "createdAt": "2026-09-19 02:00:22" } ]
+```
+Ordered newest-created first.
+
 ### `POST /api/admin/books`
 Request:
 ```json
@@ -131,6 +149,15 @@ Response `201 Created` with the created book (not activated by default — `isCu
 Sets this book's `is_current = 1` and every other book's `is_current = 0` in the same operation. → `200 OK` with the activated book.
 
 ## Admin — Topics
+
+### `GET /api/admin/books/{bookId}/topics`
+_Added in Wave 2 — lets the admin UI list a specific book's topics (including one that isn't currently active) to manage them._
+
+Response `200 OK`:
+```json
+[ { "id": 1, "bookId": 1, "title": "Chapters 1-5", "position": 0, "isClosed": false, "createdAt": "2026-09-19 02:00:22" } ]
+```
+Ordered by `position`. `404 Not Found` if the book doesn't exist.
 
 ### `POST /api/admin/topics`
 Request:

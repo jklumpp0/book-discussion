@@ -288,4 +288,67 @@ class BookControllerTest {
             .expectStatus()
             .isNotFound
     }
+
+    @Test
+    fun `GET admin books is forbidden for a non-admin`() {
+        client
+            .get()
+            .uri("/api/admin/books")
+            .headers(::asMember)
+            .exchange()
+            .expectStatus()
+            .isForbidden
+    }
+
+    @Test
+    fun `GET admin books lists every book regardless of current state`() {
+        insertBook(title = "Old Book", author = null, isCurrent = false)
+        insertBook(title = "Current Book", author = "Author", isCurrent = true)
+
+        client
+            .get()
+            .uri("/api/admin/books")
+            .headers(::asAdmin)
+            .exchange()
+            .expectStatus()
+            .isOk
+            .expectBody()
+            .jsonPath("$.length()")
+            .isEqualTo(2)
+    }
+
+    @Test
+    fun `GET admin books topics lists topics for that book`() {
+        val bookId = insertBook(title = "Book", author = null, isCurrent = true)
+        val otherBookId = insertBook(title = "Other Book", author = null, isCurrent = false)
+        insertTopic(otherBookId, "Not this book", position = 0)
+        val firstId = insertTopic(bookId, "First", position = 0)
+        val secondId = insertTopic(bookId, "Second", position = 1)
+
+        client
+            .get()
+            .uri("/api/admin/books/$bookId/topics")
+            .headers(::asAdmin)
+            .exchange()
+            .expectStatus()
+            .isOk
+            .expectBody()
+            .jsonPath("$.length()")
+            .isEqualTo(2)
+            .jsonPath("$[0].id")
+            .isEqualTo(firstId)
+            .jsonPath("$[1].id")
+            .isEqualTo(secondId)
+    }
+
+    @Test
+    fun `GET admin books topics returns 404 for an unknown book`() {
+        client
+            .get()
+            .uri("/api/admin/books/999/topics")
+            .headers(::asAdmin)
+            .exchange()
+            .expectStatus()
+            .isNotFound
+    }
 }

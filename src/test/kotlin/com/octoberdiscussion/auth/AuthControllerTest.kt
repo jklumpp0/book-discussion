@@ -223,6 +223,42 @@ class AuthControllerTest {
     }
 
     @Test
+    fun `GET admin users is forbidden for a non-admin`() {
+        seedUser("Pat", "pat-code", role = "member")
+        val cookie = login("pat-code")
+
+        client
+            .get()
+            .uri("/api/admin/users")
+            .cookie(SESSION_COOKIE_NAME, cookie)
+            .exchange()
+            .expectStatus()
+            .isForbidden
+    }
+
+    @Test
+    fun `GET admin users lists users without exposing access code hashes`() {
+        seedUser("Admin", "admin-code", role = "admin")
+        val adminCookie = login("admin-code")
+        seedUser("Jane", "jane-code")
+
+        client
+            .get()
+            .uri("/api/admin/users")
+            .cookie(SESSION_COOKIE_NAME, adminCookie)
+            .exchange()
+            .expectStatus()
+            .isOk
+            .expectBody()
+            .jsonPath("$.length()")
+            .isEqualTo(2)
+            .jsonPath("$[?(@.displayName == 'Jane')]")
+            .exists()
+            .jsonPath("$..accessCodeHash")
+            .doesNotExist()
+    }
+
+    @Test
     fun `admin can create a user, and reset-code invalidates the old code and prior sessions`() {
         seedUser("Admin", "admin-code", role = "admin")
         val adminCookie = login("admin-code")

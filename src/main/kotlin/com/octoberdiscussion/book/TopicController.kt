@@ -3,6 +3,7 @@ package com.octoberdiscussion.book
 import com.octoberdiscussion.auth.requireAdmin
 import com.octoberdiscussion.auth.requireCurrentUser
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -16,6 +17,15 @@ import org.springframework.web.server.ServerWebExchange
 class TopicController(
     private val bookRepository: BookRepository,
 ) {
+    @GetMapping("/api/admin/books/{bookId}/topics")
+    suspend fun listTopics(
+        exchange: ServerWebExchange,
+        @PathVariable bookId: Int,
+    ): List<Topic> {
+        exchange.requireCurrentUser().requireAdmin()
+        return bookRepository.findTopicsByBookId(bookId) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+    }
+
     @PostMapping("/api/admin/topics")
     @ResponseStatus(HttpStatus.CREATED)
     suspend fun createTopic(

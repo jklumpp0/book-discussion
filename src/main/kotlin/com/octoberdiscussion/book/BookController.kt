@@ -22,6 +22,12 @@ class BookController(
         return bookRepository.findCurrentBookWithTopics() ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
     }
 
+    @GetMapping("/api/admin/books")
+    suspend fun listBooks(exchange: ServerWebExchange): List<Book> {
+        exchange.requireCurrentUser().requireAdmin()
+        return bookRepository.findAllBooks()
+    }
+
     @PostMapping("/api/admin/books")
     @ResponseStatus(HttpStatus.CREATED)
     suspend fun createBook(
