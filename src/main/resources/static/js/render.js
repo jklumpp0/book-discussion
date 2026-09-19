@@ -28,13 +28,24 @@ export function renderLogin({ error } = {}) {
           <button type="submit">Log in</button>
         </form>
         ${error ? `<p class="form-error">${escapeHtml(error)}</p>` : ''}
-        <button class="link-button" type="button" data-action="demo-login">View demo (no backend needed)</button>
       </div>
     </div>
   `;
 }
 
-function renderMessage(message, { isTopLevel }) {
+function renderEditForm(message) {
+  return `
+    <form class="edit-message-form" data-form="edit-message" data-message-id="${message.id}">
+      <textarea name="body" required>${escapeHtml(message.body)}</textarea>
+      <div class="composer-actions">
+        <button type="button" data-action="cancel-edit">Cancel</button>
+        <button type="submit">Save</button>
+      </div>
+    </form>
+  `;
+}
+
+function renderMessage(message, { isTopLevel, currentUserId, editingMessageId }) {
   if (message.deletedAt) {
     return `
       <article class="message message-deleted" data-message-id="${message.id}">
@@ -50,6 +61,18 @@ function renderMessage(message, { isTopLevel }) {
     `;
   }
 
+  const isOwn = message.authorId === currentUserId;
+  const isEditing = message.id === editingMessageId;
+
+  const actions = [];
+  if (isTopLevel) {
+    actions.push('<button class="reply-button" type="button" data-action="reply-to" data-message-id="' + message.id + '">Reply</button>');
+  }
+  if (isOwn && !isEditing) {
+    actions.push('<button class="edit-button" type="button" data-action="edit-message" data-message-id="' + message.id + '">Edit</button>');
+    actions.push('<button class="delete-button" type="button" data-action="delete-message" data-message-id="' + message.id + '">Delete</button>');
+  }
+
   return `
     <article class="message" data-message-id="${message.id}">
       <div class="message-avatar">${avatarGlyph(message.authorAvatar)}</div>
@@ -59,14 +82,14 @@ function renderMessage(message, { isTopLevel }) {
           <time class="message-time">${formatTime(message.createdAt)}</time>
           ${message.editedAt ? '<span class="message-edited">(edited)</span>' : ''}
         </div>
-        <div class="message-body">${message.bodyHtml}</div>
-        ${isTopLevel ? `<button class="reply-button" type="button" data-action="reply-to" data-message-id="${message.id}">Reply</button>` : ''}
+        ${isEditing ? renderEditForm(message) : `<div class="message-body">${message.bodyHtml}</div>`}
+        ${!isEditing && actions.length ? `<div class="message-actions">${actions.join('')}</div>` : ''}
       </div>
     </article>
   `;
 }
 
-export function renderMessageFeed(messages, { isClosed } = {}) {
+export function renderMessageFeed(messages, { isClosed, currentUserId, editingMessageId } = {}) {
   if (messages.length === 0) {
     return `<p class="empty-feed">${isClosed ? 'No messages in this topic.' : 'No messages yet — be the first to post.'}</p>`;
   }
@@ -80,10 +103,11 @@ export function renderMessageFeed(messages, { isClosed } = {}) {
       const replies = messages
         .filter((m) => m.parentId === top.id)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      const opts = { currentUserId, editingMessageId };
       const repliesHtml = replies.length
-        ? `<div class="replies">${replies.map((r) => renderMessage(r, { isTopLevel: false })).join('')}</div>`
+        ? `<div class="replies">${replies.map((r) => renderMessage(r, { ...opts, isTopLevel: false })).join('')}</div>`
         : '';
-      return `<div class="message-thread">${renderMessage(top, { isTopLevel: true })}${repliesHtml}</div>`;
+      return `<div class="message-thread">${renderMessage(top, { ...opts, isTopLevel: true })}${repliesHtml}</div>`;
     })
     .join('');
 }
@@ -171,32 +195,149 @@ export function renderProfileModal(user) {
   `;
 }
 
+export function renderAdminPanel(admin) {
+  const { users, books, selectedBookId, topics, newUserCode, userError, newBookError, newTopicError } = admin;
+  const selectedBook = books.find((b) => b.id === selectedBookId);
+
+  return `
+    <div class="admin-panel">
+      <section class="admin-section">
+        <h2>Users</h2>
+        ${
+          newUserCode
+            ? `<p class="one-time-code">
+                New access code for <strong>${escapeHtml(newUserCode.displayName)}</strong>: <code>${escapeHtml(newUserCode.accessCode)}</code>
+                — save this now, it won't be shown again.
+                <button type="button" data-action="dismiss-user-code">Dismiss</button>
+              </p>`
+            : ''
+        }
+        <form class="admin-inline-form" data-form="create-user">
+          <input name="displayName" placeholder="Display name" required />
+          <select name="avatarKey">${AVATAR_KEYS.map((key) => `<option value="${key}">${key}</option>`).join('')}</select>
+          <select name="role">
+            <option value="member">member</option>
+            <option value="admin">admin</option>
+          </select>
+          <button type="submit">Add user</button>
+        </form>
+        ${userError ? `<p class="form-error">${escapeHtml(userError)}</p>` : ''}
+        <ul class="admin-list">
+          ${users
+            .map(
+              (u) => `
+            <li>
+              <span class="admin-item-avatar">${avatarGlyph(u.avatarKey)}</span>
+              <span class="admin-item-name">${escapeHtml(u.displayName)}</span>
+              <span class="admin-item-role">${escapeHtml(u.role)}</span>
+              <button type="button" data-action="reset-user-code" data-user-id="${u.id}">Reset code</button>
+              <button type="button" data-action="delete-user" data-user-id="${u.id}">Delete</button>
+            </li>
+          `,
+            )
+            .join('')}
+        </ul>
+      </section>
+
+      <section class="admin-section">
+        <h2>Books</h2>
+        <form class="admin-inline-form" data-form="create-book">
+          <input name="title" placeholder="Book title" required />
+          <input name="author" placeholder="Author (optional)" />
+          <button type="submit">Add book</button>
+        </form>
+        ${newBookError ? `<p class="form-error">${escapeHtml(newBookError)}</p>` : ''}
+        <ul class="admin-list">
+          ${books
+            .map(
+              (b) => `
+            <li class="${b.id === selectedBookId ? 'selected' : ''}">
+              <button type="button" class="admin-list-select" data-action="select-admin-book" data-book-id="${b.id}">
+                ${escapeHtml(b.title)} ${b.isCurrent ? '<span class="current-badge">current</span>' : ''}
+              </button>
+              ${!b.isCurrent ? `<button type="button" data-action="activate-book" data-book-id="${b.id}">Make current</button>` : ''}
+            </li>
+          `,
+            )
+            .join('')}
+        </ul>
+      </section>
+
+      ${
+        selectedBook
+          ? `
+        <section class="admin-section">
+          <h2>Topics for "${escapeHtml(selectedBook.title)}"</h2>
+          <form class="admin-inline-form" data-form="create-topic">
+            <input type="hidden" name="bookId" value="${selectedBook.id}" />
+            <input name="title" placeholder="Topic title" required />
+            <input name="position" type="number" value="${topics.length}" />
+            <button type="submit">Add topic</button>
+          </form>
+          ${newTopicError ? `<p class="form-error">${escapeHtml(newTopicError)}</p>` : ''}
+          <ul class="admin-list">
+            ${topics
+              .map(
+                (t) => `
+              <li>
+                <span>${escapeHtml(t.title)} (position ${t.position})</span>
+                <button type="button" data-action="toggle-topic-closed" data-topic-id="${t.id}" data-closed="${t.isClosed}">
+                  ${t.isClosed ? 'Reopen' : 'Close'}
+                </button>
+              </li>
+            `,
+              )
+              .join('')}
+          </ul>
+        </section>
+      `
+          : ''
+      }
+    </div>
+  `;
+}
+
 export function renderApp(state) {
-  const { user, book, selectedTopicId, replyTo } = state;
-  const topic = book.topics.find((t) => t.id === selectedTopicId);
-  const messages = state.messagesByTopic[selectedTopicId] ?? [];
+  const { user, book, selectedTopicId, replyTo, editingMessageId, view, admin, actionError } = state;
+  const topic = book?.topics.find((t) => t.id === selectedTopicId);
+  const messages = state.messages;
+
+  const mainContent = !book
+    ? `<div class="empty-state">
+        <p>No book has been set up yet.</p>
+        <p>${user.role === 'admin' ? 'Use the admin panel to create one.' : 'Ask an admin to set one up.'}</p>
+      </div>`
+    : `<div class="app-body">
+        <nav class="topic-sidebar">${renderTopicList(book.topics, selectedTopicId)}</nav>
+        <main class="message-pane">
+          ${actionError ? `<p class="form-error">${escapeHtml(actionError)}</p>` : ''}
+          <div class="message-feed">${renderMessageFeed(messages, { isClosed: topic?.isClosed, currentUserId: user.id, editingMessageId })}</div>
+          ${topic ? renderComposer({ topic, replyTo }) : ''}
+        </main>
+      </div>`;
 
   return `
     <div class="app-shell">
       <header class="app-header">
         <div class="book-info">
-          <h1>${escapeHtml(book.title)}</h1>
-          ${book.author ? `<span class="book-author">${escapeHtml(book.author)}</span>` : ''}
+          <h1>${book ? escapeHtml(book.title) : 'October Discussion'}</h1>
+          ${book?.author ? `<span class="book-author">${escapeHtml(book.author)}</span>` : ''}
         </div>
         <div class="user-info">
+          ${
+            user.role === 'admin'
+              ? `<button type="button" data-action="${view === 'admin' ? 'open-discussion' : 'open-admin'}">${
+                  view === 'admin' ? 'Back to discussion' : 'Admin panel'
+                }</button>`
+              : ''
+          }
           <button class="avatar-button" type="button" data-action="open-profile">
             <span class="avatar-glyph">${avatarGlyph(user.avatarKey)}</span> ${escapeHtml(user.displayName)}
           </button>
           <button type="button" data-action="logout">Log out</button>
         </div>
       </header>
-      <div class="app-body">
-        <nav class="topic-sidebar">${renderTopicList(book.topics, selectedTopicId)}</nav>
-        <main class="message-pane">
-          <div class="message-feed">${renderMessageFeed(messages, { isClosed: topic?.isClosed })}</div>
-          ${topic ? renderComposer({ topic, replyTo }) : ''}
-        </main>
-      </div>
+      ${view === 'admin' ? renderAdminPanel(admin) : mainContent}
     </div>
     ${state.profileOpen ? renderProfileModal(user) : ''}
   `;

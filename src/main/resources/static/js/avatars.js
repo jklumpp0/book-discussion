@@ -1,4 +1,4 @@
-// Placeholder preset set for Wave 1 — reconcile against Group A's actual avatarKey list in Wave 2.
+// Matches the backend's fixed preset list exactly (see Avatars.kt).
 export const AVATAR_KEYS = ['fox', 'owl', 'deer', 'bear', 'raccoon', 'hedgehog'];
 
 const AVATAR_GLYPHS = {

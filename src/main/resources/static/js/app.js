@@ -1,47 +1,74 @@
 import * as api from './api.js';
 import { ApiError } from './api.js';
-import * as fixture from './fixture.js';
-import { renderLogin, renderApp, escapeHtml, snippet } from './render.js';
+import { renderLogin, renderApp, snippet } from './render.js';
 
 const appRoot = document.getElementById('app');
 
 const state = {
-  mode: 'login',
-  demo: false,
+  mode: 'login', // 'login' | 'app'
+  view: 'discussion', // 'discussion' | 'admin'
   user: null,
   book: null,
-  messagesByTopic: {},
+  messages: [],
   selectedTopicId: null,
   replyTo: null,
+  editingMessageId: null,
   profileOpen: false,
   loginError: null,
+  actionError: null,
+  admin: {
+    users: [],
+    books: [],
+    selectedBookId: null,
+    topics: [],
+    newUserCode: null,
+    userError: null,
+    newBookError: null,
+    newTopicError: null,
+  },
 };
-
-let nextMessageId = 100000;
 
 function render() {
   appRoot.innerHTML = state.mode === 'login' ? renderLogin({ error: state.loginError }) : renderApp(state);
   if (state.mode === 'login') appRoot.querySelector('#access-code')?.focus();
 }
 
-// The fixture stands in for Group B/C's endpoints until Wave 2 wires the real API;
-// only login/logout hit the network in this build.
-async function enterApp(user, { demo }) {
+async function refreshMessages() {
+  state.messages = state.selectedTopicId != null ? await api.getMessages(state.selectedTopicId) : [];
+}
+
+async function loadBook() {
+  try {
+    state.book = await api.getCurrentBook();
+    state.selectedTopicId = state.book.topics[0]?.id ?? null;
+    await refreshMessages();
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      state.book = null;
+      state.selectedTopicId = null;
+      state.messages = [];
+    } else {
+      throw err;
+    }
+  }
+}
+
+async function enterApp(user) {
   state.mode = 'app';
-  state.demo = demo;
+  state.view = 'discussion';
   state.user = user;
-  state.book = JSON.parse(JSON.stringify(fixture.book));
-  state.messagesByTopic = JSON.parse(JSON.stringify(fixture.messagesByTopic));
-  state.selectedTopicId = state.book.topics[0]?.id ?? null;
   state.replyTo = null;
+  state.editingMessageId = null;
   state.loginError = null;
+  state.actionError = null;
+  await loadBook();
   render();
 }
 
 function loginErrorMessage(err) {
   if (err instanceof ApiError && err.status === 401) return 'Invalid access code.';
   if (err instanceof ApiError) return `Login failed (status ${err.status}).`;
-  return 'Could not reach the server — is the backend running? Try the demo instead.';
+  return 'Could not reach the server — is the backend running?';
 }
 
 async function handleLoginSubmit(form) {
@@ -49,7 +76,7 @@ async function handleLoginSubmit(form) {
   state.loginError = null;
   try {
     const user = await api.login(accessCode);
-    await enterApp(user, { demo: false });
+    await enterApp(user);
   } catch (err) {
     state.loginError = loginErrorMessage(err);
     render();
@@ -57,68 +84,234 @@ async function handleLoginSubmit(form) {
 }
 
 async function handleLogout() {
-  if (!state.demo) {
-    try {
-      await api.logout();
-    } catch {
-      // No backend yet in Wave 1 — logging out of the local view still succeeds.
-    }
+  try {
+    await api.logout();
+  } catch {
+    // Best-effort: still clear the local view even if the network call fails.
   }
   state.mode = 'login';
-  state.demo = false;
+  state.view = 'discussion';
   state.user = null;
   state.book = null;
-  state.messagesByTopic = {};
+  state.messages = [];
   state.selectedTopicId = null;
   state.replyTo = null;
+  state.editingMessageId = null;
   state.profileOpen = false;
   state.loginError = null;
+  state.actionError = null;
   render();
 }
 
-function handlePostMessage(form) {
+async function selectTopic(topicId) {
+  state.selectedTopicId = topicId;
+  state.replyTo = null;
+  state.editingMessageId = null;
+  state.actionError = null;
+  await refreshMessages();
+  render();
+}
+
+async function handlePostMessage(form) {
   const body = form.elements.body.value.trim();
   if (!body) return;
-
   const topicId = state.selectedTopicId;
-  const topic = state.book.topics.find((t) => t.id === topicId);
-  if (!topic || topic.isClosed) return;
-
-  const newMessage = {
-    id: nextMessageId++,
-    topicId,
-    authorId: state.user.id,
-    authorName: state.user.displayName,
-    authorAvatar: state.user.avatarKey,
-    parentId: state.replyTo?.id ?? null,
-    body,
-    bodyHtml: `<p>${escapeHtml(body)}</p>`,
-    createdAt: new Date().toISOString(),
-    editedAt: null,
-    deletedAt: null,
-  };
-
-  state.messagesByTopic[topicId] = [...(state.messagesByTopic[topicId] ?? []), newMessage];
-  state.replyTo = null;
-  render();
+  state.actionError = null;
+  try {
+    await api.postMessage(topicId, { body, parentId: state.replyTo?.id ?? null });
+    state.replyTo = null;
+    await refreshMessages();
+    render();
+  } catch {
+    state.actionError = 'Could not post that message.';
+    render();
+  }
 }
 
 function handleProfileSubmit(form) {
   const displayName = form.elements.displayName.value.trim();
   const avatarKey = form.querySelector('input[name="avatarKey"]:checked')?.value ?? state.user.avatarKey;
   if (!displayName) return;
-  state.user = { ...state.user, displayName, avatarKey };
-  state.profileOpen = false;
-  render();
+  api
+    .updateMe({ displayName, avatarKey })
+    .then((user) => {
+      state.user = user;
+      state.profileOpen = false;
+      render();
+    })
+    .catch(() => {
+      state.actionError = 'Could not update your profile.';
+      state.profileOpen = false;
+      render();
+    });
 }
 
 function handleReplyTo(messageId) {
-  const messages = state.messagesByTopic[state.selectedTopicId] ?? [];
-  const target = messages.find((m) => m.id === messageId);
+  const target = state.messages.find((m) => m.id === messageId);
   if (!target || target.deletedAt) return;
   state.replyTo = { id: target.id, authorName: target.authorName, snippet: snippet(target.body) };
   render();
   appRoot.querySelector('[data-form="post-message"] textarea')?.focus();
+}
+
+function startEditMessage(messageId) {
+  state.editingMessageId = messageId;
+  render();
+  appRoot.querySelector(`[data-form="edit-message"][data-message-id="${messageId}"] textarea`)?.focus();
+}
+
+function cancelEditMessage() {
+  state.editingMessageId = null;
+  render();
+}
+
+async function submitEditMessage(form) {
+  const messageId = Number(form.dataset.messageId);
+  const body = form.elements.body.value.trim();
+  if (!body) return;
+  state.actionError = null;
+  try {
+    await api.editMessage(messageId, body);
+    state.editingMessageId = null;
+    await refreshMessages();
+    render();
+  } catch {
+    state.actionError = 'Could not save your edit.';
+    render();
+  }
+}
+
+async function handleDeleteMessage(messageId) {
+  if (!confirm('Delete this message?')) return;
+  state.actionError = null;
+  try {
+    await api.deleteMessage(messageId);
+    await refreshMessages();
+    render();
+  } catch {
+    state.actionError = 'Could not delete that message.';
+    render();
+  }
+}
+
+async function refreshAdminUsers() {
+  state.admin.users = await api.adminListUsers();
+}
+
+async function refreshAdminBooks() {
+  state.admin.books = await api.adminListBooks();
+  if (state.admin.selectedBookId == null || !state.admin.books.some((b) => b.id === state.admin.selectedBookId)) {
+    state.admin.selectedBookId = state.admin.books.find((b) => b.isCurrent)?.id ?? state.admin.books[0]?.id ?? null;
+  }
+}
+
+async function refreshAdminTopics(bookId) {
+  state.admin.topics = bookId != null ? await api.adminListTopics(bookId) : [];
+}
+
+async function openAdmin() {
+  state.view = 'admin';
+  state.admin.userError = null;
+  state.admin.newBookError = null;
+  state.admin.newTopicError = null;
+  await refreshAdminUsers();
+  await refreshAdminBooks();
+  await refreshAdminTopics(state.admin.selectedBookId);
+  render();
+}
+
+function closeAdmin() {
+  state.view = 'discussion';
+  render();
+}
+
+async function selectAdminBook(bookId) {
+  state.admin.selectedBookId = bookId;
+  await refreshAdminTopics(bookId);
+  render();
+}
+
+async function handleCreateUser(form) {
+  const displayName = form.elements.displayName.value.trim();
+  const avatarKey = form.elements.avatarKey.value;
+  const role = form.elements.role.value;
+  if (!displayName) return;
+  try {
+    const created = await api.adminCreateUser({ displayName, avatarKey, role });
+    state.admin.newUserCode = { displayName: created.displayName, accessCode: created.accessCode };
+    state.admin.userError = null;
+    await refreshAdminUsers();
+    render();
+  } catch {
+    state.admin.userError = 'Could not create that user.';
+    render();
+  }
+}
+
+async function handleDeleteUser(userId) {
+  if (!confirm('Delete this user? This cannot be undone.')) return;
+  await api.adminDeleteUser(userId);
+  await refreshAdminUsers();
+  render();
+}
+
+async function handleResetUserCode(userId) {
+  const result = await api.adminResetUserCode(userId);
+  const user = state.admin.users.find((u) => u.id === userId);
+  state.admin.newUserCode = { displayName: user?.displayName ?? `User #${userId}`, accessCode: result.accessCode };
+  render();
+}
+
+async function handleCreateBook(form) {
+  const title = form.elements.title.value.trim();
+  const author = form.elements.author.value.trim() || null;
+  if (!title) return;
+  try {
+    await api.adminCreateBook({ title, author });
+    state.admin.newBookError = null;
+    await refreshAdminBooks();
+    await refreshAdminTopics(state.admin.selectedBookId);
+    render();
+  } catch {
+    state.admin.newBookError = 'Could not create that book.';
+    render();
+  }
+}
+
+async function handleActivateBook(bookId) {
+  await api.adminActivateBook(bookId);
+  await refreshAdminBooks();
+  if (state.mode === 'app') await loadBook();
+  render();
+}
+
+async function handleCreateTopic(form) {
+  const bookId = Number(form.elements.bookId.value);
+  const title = form.elements.title.value.trim();
+  const position = Number(form.elements.position.value) || 0;
+  if (!title) return;
+  try {
+    await api.adminCreateTopic({ bookId, title, position });
+    state.admin.newTopicError = null;
+    await refreshAdminTopics(bookId);
+    if (state.book?.id === bookId) await loadBook();
+    render();
+  } catch {
+    state.admin.newTopicError = 'Could not create that topic.';
+    render();
+  }
+}
+
+async function handleToggleTopicClosed(topicId, currentlyClosed) {
+  await api.adminUpdateTopic(topicId, { isClosed: !currentlyClosed });
+  await refreshAdminTopics(state.admin.selectedBookId);
+  if (state.book) await loadBook();
+  render();
+}
+
+function dismissUserCode() {
+  state.admin.newUserCode = null;
+  render();
 }
 
 appRoot.addEventListener('click', (event) => {
@@ -132,13 +325,8 @@ appRoot.addEventListener('click', (event) => {
   if (!actionEl) return;
 
   switch (actionEl.dataset.action) {
-    case 'demo-login':
-      enterApp(fixture.demoUser, { demo: true });
-      break;
     case 'select-topic':
-      state.selectedTopicId = Number(actionEl.dataset.topicId);
-      state.replyTo = null;
-      render();
+      selectTopic(Number(actionEl.dataset.topicId));
       break;
     case 'reply-to':
       handleReplyTo(Number(actionEl.dataset.messageId));
@@ -146,6 +334,15 @@ appRoot.addEventListener('click', (event) => {
     case 'cancel-reply':
       state.replyTo = null;
       render();
+      break;
+    case 'edit-message':
+      startEditMessage(Number(actionEl.dataset.messageId));
+      break;
+    case 'cancel-edit':
+      cancelEditMessage();
+      break;
+    case 'delete-message':
+      handleDeleteMessage(Number(actionEl.dataset.messageId));
       break;
     case 'open-profile':
       state.profileOpen = true;
@@ -158,6 +355,30 @@ appRoot.addEventListener('click', (event) => {
     case 'logout':
       handleLogout();
       break;
+    case 'open-admin':
+      openAdmin();
+      break;
+    case 'open-discussion':
+      closeAdmin();
+      break;
+    case 'select-admin-book':
+      selectAdminBook(Number(actionEl.dataset.bookId));
+      break;
+    case 'activate-book':
+      handleActivateBook(Number(actionEl.dataset.bookId));
+      break;
+    case 'delete-user':
+      handleDeleteUser(Number(actionEl.dataset.userId));
+      break;
+    case 'reset-user-code':
+      handleResetUserCode(Number(actionEl.dataset.userId));
+      break;
+    case 'toggle-topic-closed':
+      handleToggleTopicClosed(Number(actionEl.dataset.topicId), actionEl.dataset.closed === 'true');
+      break;
+    case 'dismiss-user-code':
+      dismissUserCode();
+      break;
   }
 });
 
@@ -168,13 +389,17 @@ appRoot.addEventListener('submit', (event) => {
 
   if (form.dataset.form === 'login') handleLoginSubmit(form);
   else if (form.dataset.form === 'post-message') handlePostMessage(form);
+  else if (form.dataset.form === 'edit-message') submitEditMessage(form);
   else if (form.dataset.form === 'profile') handleProfileSubmit(form);
+  else if (form.dataset.form === 'create-user') handleCreateUser(form);
+  else if (form.dataset.form === 'create-book') handleCreateBook(form);
+  else if (form.dataset.form === 'create-topic') handleCreateTopic(form);
 });
 
 async function init() {
   try {
     const user = await api.getMe();
-    await enterApp(user, { demo: false });
+    await enterApp(user);
   } catch {
     render();
   }
