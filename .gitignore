@@ -11,3 +11,7 @@ data/
 .idea/
 *.iml
 *.swp
+
+# Deploy bundle output from the release workflow's packaging step (source lives in deploy/)
+/october-discussion/
+october-discussion-deploy-*.tgz
