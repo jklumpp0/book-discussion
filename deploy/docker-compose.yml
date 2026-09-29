@@ -1,6 +1,6 @@
 services:
   app:
-    build: .
+    image: __IMAGE__
     ports:
       - "8080:8080"
     volumes:

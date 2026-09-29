@@ -1,10 +1,7 @@
-FROM eclipse-temurin:21-jdk-jammy AS build
+# Expects a prebuilt jar: run ./gradlew bootJar first (CI does this in the release workflow).
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
-COPY . .
-RUN chmod +x ./gradlew && ./gradlew bootJar --no-daemon
-
-FROM eclipse-temurin:21-jre-jammy AS runtime
-WORKDIR /app
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY build/libs/app.jar app.jar
+ENV DB_PATH=/app/data/october-discussion.db
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

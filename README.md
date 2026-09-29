@@ -2,15 +2,36 @@
 
 A small, self-hosted discussion site for a book club.
 
-## Running it (Docker)
+## Deploying (released image)
+
+Pushing a version tag (e.g. `git tag v0.2.0 && git push origin v0.2.0`) runs
+`.github/workflows/release.yml`, which:
+
+1. runs `./gradlew check` and builds the jar,
+2. builds an **arm64** image containing only that jar on a Java 21 JRE and pushes it to
+   `ghcr.io/jklumpp0/book-discussion` as `:<version>` and `:latest`,
+3. creates a GitHub Release with `october-discussion-deploy-<version>.tgz` attached.
+
+That tarball is the whole deliverable: a `docker-compose.yml` pinned to the released
+image, an empty `data/` directory, and a README (source: `deploy/`). The server never
+needs this repository — see `deploy/README.md` for the install/upgrade/backup steps.
+
+After the first release, make the GHCR package public once (GitHub → Packages →
+book-discussion → Package settings → Change visibility) so servers can pull without
+logging in.
+
+Pull requests and pushes to `main` only run `./gradlew check` (`.github/workflows/ci.yml`).
+
+## Running it locally with Docker
+
+The Dockerfile only packages a prebuilt jar, so build that first:
 
 ```
+./gradlew bootJar
 docker compose up --build
 ```
 
 The site is then available at `http://localhost:8080`.
-
-> **Note:** this Docker path has not been verified against a real Docker daemon as of this writing (none was available in the environments used during development) — the Dockerfile/compose file were reviewed carefully and the equivalent native build+run flow below was verified instead. If `docker compose up --build` doesn't work cleanly, that's the first thing to debug.
 
 ## Running it (local development, no Docker)
 
@@ -51,14 +72,15 @@ to admin accounts).
 
 ## Data persistence
 
-The SQLite database lives on the named Docker volume `october-discussion-data`,
-mounted at `/app/data` inside the container. It survives container restarts and
-rebuilds (`docker compose up --build`); it's only lost if you explicitly remove the
-volume with `docker compose down -v`.
+The SQLite database lives in `./data/` next to the compose file, bind-mounted at
+`/app/data` inside the container. It survives container restarts, `docker compose
+down`, and image upgrades; only deleting the directory loses it. Local
+`./gradlew bootRun` uses the same `./data/` path, so it shares the database with
+local `docker compose`.
 
 ## Stopping and restarting
 
 ```
-docker compose down    # stops the container, keeps the data volume
+docker compose down    # stops the container; ./data is untouched
 docker compose up -d   # starts it again, same data, no new admin user is created
 ```

@@ -10,7 +10,7 @@ Scale is 10s of users, fixed/admin-managed membership, no self-signup. Prioritie
 
 | Decision | Choice |
 |---|---|
-| Deployment | Docker / docker-compose, `restart: unless-stopped`, SQLite file on a named volume |
+| Deployment | arm64 Docker image on GHCR built by GitHub Actions on `v*` tags; Release carries a compose bundle (no repo clone on the server); `restart: unless-stopped`; SQLite in a bind-mounted `./data` dir, no UID/GID mapping |
 | Login | Simple shared access code per user (not WebAuthn), hashed at rest, opaque session cookie |
 | Live updates | None — manual page refresh |
 | Avatar | Small preset avatar set (no upload, no external URL) — final list: `fox, owl, deer, bear, raccoon, hedgehog` (see `docs/AVATARS.md`) |
@@ -106,8 +106,10 @@ Original Wave 0 sketch (superseded by `docs/API.md`, left here for the historica
 
 ## Deployment
 
-- Single-stage `Dockerfile`: the Spring Boot Gradle plugin's `bootJar` task produces an executable fat jar; runtime image just needs a JRE. No Node stage needed since the frontend has no build step.
-- `docker-compose.yml`: one service, named volume mounted at the SQLite file's directory, `restart: unless-stopped`.
+- `Dockerfile` is a single stage that only copies the prebuilt `build/libs/app.jar` (`bootJar` is pinned to that name; the plain `jar` task is disabled) onto `eclipse-temurin:21-jre-jammy`. `.dockerignore` is an allowlist containing just that jar, so the build context is the deliverable and nothing else. No `RUN` steps, so buildx assembles the arm64 image on an amd64 runner without emulation doing real work.
+- `.github/workflows/release.yml` (on `v*` tags): `./gradlew check bootJar` → push `ghcr.io/<repo>:<semver>` + `:latest` (linux/arm64 only) → GitHub Release with `october-discussion-deploy-<version>.tgz` (`deploy/docker-compose.yml` with the image tag filled in, `deploy/README.md`, empty `data/`). `.github/workflows/ci.yml` runs `./gradlew check` on PRs and pushes to `main`.
+- Persistence: bind mount `./data:/app/data` (the directory, not the `.db` file — SQLite writes its journal next to the DB, and Docker creates a directory if a bind-mounted file is missing). Decided deliberately: no entrypoint script, `chown`, or PUID/PGID mapping. Options considered and rejected: entrypoint adopting the dir owner, PUID/PGID config, fixed image UID + host `chown`, named volume.
+- GHCR package visibility is public (set once by hand after the first release).
 - First-run bootstrap: on startup, if `user` table is empty, seed one admin user with a randomly generated access code printed to container logs once (an `ApplicationRunner`/`CommandLineRunner` bean, or a check inside the WebFlux startup path).
 
 ## Toolchain notes (environment-specific, recorded for continuity)
