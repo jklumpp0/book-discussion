@@ -193,6 +193,26 @@ class AuthControllerTest {
     }
 
     @Test
+    fun `patch me accepts every Halloween avatar key`() {
+        seedUser("Pat", "pat-code")
+        val cookie = login("pat-code")
+
+        listOf("pumpkin", "ghost", "bat", "black-cat", "spider", "skull", "witch", "vampire", "zombie").forEach { key ->
+            client
+                .patch()
+                .uri("/api/me")
+                .cookie(SESSION_COOKIE_NAME, cookie)
+                .bodyValue(UpdateMeRequest(avatarKey = key))
+                .exchange()
+                .expectStatus()
+                .isOk
+                .expectBody()
+                .jsonPath("$.avatarKey")
+                .isEqualTo(key)
+        }
+    }
+
+    @Test
     fun `patch me rejects an avatar key outside the preset list`() {
         seedUser("Pat", "pat-code")
         val cookie = login("pat-code")

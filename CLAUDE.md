@@ -49,7 +49,7 @@ Prefer the standard library over a dependency when the stdlib already covers it 
 - Run `./gradlew ktlintFormat` before considering a change done.
 - Run `./gradlew test` before reporting a task complete.
 - The frozen contracts other code depends on are `docs/API.md` (endpoint shapes/status codes), `src/main/resources/schema.sql` (data model), and `src/main/kotlin/com/octoberdiscussion/auth/CurrentUser.kt` (the `requireCurrentUser()`/`requireAdmin()` extension functions every controller uses for auth). Treat changes to these as cross-cutting — check what else depends on the exact shape before editing.
-- The preset avatar key list (`fox, owl, deer, bear, raccoon, hedgehog`) must stay identical in `auth/Avatars.kt` (backend, source of truth for validation) and `static/js/avatars.js` (frontend). See `docs/AVATARS.md`.
+- The preset avatar key list (`fox, owl, deer, bear, raccoon, hedgehog, pumpkin, ghost, bat, black-cat, spider, skull, witch, vampire, zombie`) must stay identical in `auth/Avatars.kt` (backend, source of truth for validation) and `static/js/avatars.js` (frontend). See `docs/AVATARS.md`.
 
 ## Gotchas learned in this codebase (avoid re-discovering these)
 
