@@ -12,3 +12,9 @@ spring:
   sql:
     init:
       mode: always
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          # Revalidate static JS/CSS on every load so an upgrade never mixes stale and new modules.
+          no-cache: true

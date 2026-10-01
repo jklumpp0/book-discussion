@@ -177,7 +177,7 @@ export function renderProfileModal(user) {
             <legend>Avatar</legend>
             ${AVATAR_KEYS.map(
               (key) => `
-              <label class="avatar-option ${key === user.avatarKey ? 'selected' : ''}">
+              <label class="avatar-option">
                 <input type="radio" name="avatarKey" value="${key}" ${key === user.avatarKey ? 'checked' : ''} />
                 <span class="avatar-glyph">${avatarGlyph(key)}</span>
                 <span class="avatar-label">${key}</span>

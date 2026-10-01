@@ -430,6 +430,8 @@ a {
   padding: 1.5rem;
   width: 100%;
   max-width: 380px;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 .modal h2 {
@@ -481,10 +483,12 @@ a {
   padding: 0.4rem;
   cursor: pointer;
   font-size: 0.75rem;
+  position: relative;
   color: var(--text-muted);
 }
 
-.avatar-option.selected {
+/* Follows the checked radio, so the highlight moves as soon as an avatar is clicked. */
+.avatar-option:has(input:checked) {
   border-color: var(--accent);
   background: var(--surface-alt);
   color: var(--text);
@@ -494,6 +498,10 @@ a {
   position: absolute;
   opacity: 0;
   pointer-events: none;
+}
+
+.avatar-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
 }
 
 .avatar-glyph {
