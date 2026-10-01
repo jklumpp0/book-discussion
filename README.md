@@ -18,7 +18,9 @@ needs this repository — see `deploy/README.md` for the install/upgrade/backup 
 
 After the first release, make the GHCR package public once (GitHub → Packages →
 book-discussion → Package settings → Change visibility) so servers can pull without
-logging in.
+logging in. GitHub has no API for this, so the workflow can't do it; instead its
+"Check image is publicly pullable" step posts a warning with the settings link on any
+release whose image isn't anonymously pullable yet. Public visibility can't be reversed.
 
 Pull requests and pushes to `main` only run `./gradlew check` (`.github/workflows/ci.yml`).
 
