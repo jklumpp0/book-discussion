@@ -13,7 +13,7 @@ Scale is 10s of users, fixed/admin-managed membership, no self-signup. Prioritie
 | Deployment | arm64 Docker image on GHCR built by GitHub Actions on `v*` tags; Release carries a compose bundle (no repo clone on the server); `restart: unless-stopped`; SQLite in a bind-mounted `./data` dir, no UID/GID mapping |
 | Login | Simple shared access code per user (not WebAuthn), hashed at rest, opaque session cookie |
 | Live updates | None — manual page refresh |
-| Avatar | Small preset avatar set (no upload, no external URL) — list: `fox, owl, deer, bear, raccoon, hedgehog, pumpkin, ghost, bat, black-cat, spider, skull, witch, vampire, zombie` (the last nine are Halloween-themed, added Sept 2026) (see `docs/AVATARS.md`) |
+| Avatar | Small preset avatar set (no upload, no external URL) — list: `pumpkin, ghost, bat, black-cat, spider, skull, witch, vampire, zombie` (Halloween-themed; replaced the original `fox, owl, deer, bear, raccoon, hedgehog` set in Oct 2026 — existing users with a retired key render with the 🍂 fallback) (see `docs/AVATARS.md`) |
 | Thread depth | One level only — a message's `parent_id` may only point at a top-level message |
 | Edit/delete | Both allowed, own messages only; delete is soft-delete (`[deleted]`) |
 | Admin workflow | In-app admin web UI (manage users/access codes, set current book, add/close topics) |

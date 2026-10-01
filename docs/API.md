@@ -15,7 +15,7 @@ Request:
 ```
 Response `200 OK` (also sets the session cookie):
 ```json
-{ "id": 1, "displayName": "Jane", "avatarKey": "fox", "role": "member" }
+{ "id": 1, "displayName": "Jane", "avatarKey": "pumpkin", "role": "member" }
 ```
 `401 Unauthorized` if the code doesn't match any user.
 
@@ -63,7 +63,7 @@ Response `200 OK`:
     "topicId": 1,
     "authorId": 3,
     "authorName": "Jane",
-    "authorAvatar": "fox",
+    "authorAvatar": "pumpkin",
     "parentId": null,
     "body": "raw markdown or null if deleted",
     "bodyHtml": "sanitized rendered HTML or null if deleted",
@@ -114,7 +114,7 @@ Request (`avatarKey` must be one of the presets in `docs/AVATARS.md`, `role` one
 
 Response `201 Created`:
 ```json
-{ "id": 5, "displayName": "New Person", "avatarKey": "owl", "role": "member", "accessCode": "one-time-plaintext-code" }
+{ "id": 5, "displayName": "New Person", "avatarKey": "ghost", "role": "member", "accessCode": "one-time-plaintext-code" }
 ```
 `accessCode` is returned **only in this response** — it is never retrievable again (only the hash is stored).
 

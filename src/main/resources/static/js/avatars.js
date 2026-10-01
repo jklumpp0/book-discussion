@@ -1,11 +1,5 @@
 // Matches the backend's fixed preset list exactly (see Avatars.kt).
 export const AVATAR_KEYS = [
-  'fox',
-  'owl',
-  'deer',
-  'bear',
-  'raccoon',
-  'hedgehog',
   'pumpkin',
   'ghost',
   'bat',
@@ -18,12 +12,6 @@ export const AVATAR_KEYS = [
 ];
 
 const AVATAR_GLYPHS = {
-  fox: '🦊',
-  owl: '🦉',
-  deer: '🦌',
-  bear: '🐻',
-  raccoon: '🦝',
-  hedgehog: '🦔',
   pumpkin: '🎃',
   ghost: '👻',
   bat: '🦇',

@@ -4,12 +4,6 @@ Users pick from a small fixed set of preset avatars — no image upload, no exte
 
 | Key | Glyph |
 |---|---|
-| `fox` | 🦊 |
-| `owl` | 🦉 |
-| `deer` | 🦌 |
-| `bear` | 🐻 |
-| `raccoon` | 🦝 |
-| `hedgehog` | 🦔 |
 | `pumpkin` | 🎃 |
 | `ghost` | 👻 |
 | `bat` | 🦇 |
@@ -23,6 +17,10 @@ Users pick from a small fixed set of preset avatars — no image upload, no exte
 This list must stay in sync in exactly two places:
 - Backend: `src/main/kotlin/com/octoberdiscussion/auth/Avatars.kt` (`AVATAR_KEYS`) — the source of truth for validation. `PATCH /api/me` and `POST /api/admin/users` both reject any `avatarKey` not in this list with `400 Bad Request`.
 - Frontend: `src/main/resources/static/js/avatars.js` (`AVATAR_KEYS`, `avatarGlyph`) — drives the profile editor's picker and renders each user's glyph next to their messages.
+
+## Retired keys
+
+The original set (`fox, owl, deer, bear, raccoon, hedgehog`) was removed in favor of the Halloween set. Users who already had one keep it in the database; it's no longer accepted by `PATCH /api/me` or `POST /api/admin/users` (`400`), and the frontend renders it with the 🍂 fallback below until they pick a new avatar.
 
 ## The `"default"` fallback
 

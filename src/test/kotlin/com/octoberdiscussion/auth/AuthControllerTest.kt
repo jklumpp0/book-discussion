@@ -49,7 +49,7 @@ class AuthControllerTest {
         displayName: String,
         accessCode: String,
         role: String = "member",
-        avatarKey: String = "fox",
+        avatarKey: String = "pumpkin",
     ): Int {
         val hash = BCrypt.withDefaults().hashToString(TEST_BCRYPT_COST, accessCode.toCharArray())
         jdbcTemplate.update(
@@ -171,7 +171,7 @@ class AuthControllerTest {
             .patch()
             .uri("/api/me")
             .cookie(SESSION_COOKIE_NAME, cookie)
-            .bodyValue(UpdateMeRequest(displayName = "Patricia", avatarKey = "owl"))
+            .bodyValue(UpdateMeRequest(displayName = "Patricia", avatarKey = "ghost"))
             .exchange()
             .expectStatus()
             .isOk
@@ -188,7 +188,7 @@ class AuthControllerTest {
             .expectBody(UserResponse::class.java)
             .value {
                 assertEquals("Patricia", it.displayName)
-                assertEquals("owl", it.avatarKey)
+                assertEquals("ghost", it.avatarKey)
             }
     }
 
@@ -210,6 +210,21 @@ class AuthControllerTest {
                 .jsonPath("$.avatarKey")
                 .isEqualTo(key)
         }
+    }
+
+    @Test
+    fun `patch me rejects a retired original avatar key`() {
+        seedUser("Pat", "pat-code")
+        val cookie = login("pat-code")
+
+        client
+            .patch()
+            .uri("/api/me")
+            .cookie(SESSION_COOKIE_NAME, cookie)
+            .bodyValue(UpdateMeRequest(avatarKey = "fox"))
+            .exchange()
+            .expectStatus()
+            .isBadRequest
     }
 
     @Test
@@ -236,7 +251,7 @@ class AuthControllerTest {
             .post()
             .uri("/api/admin/users")
             .cookie(SESSION_COOKIE_NAME, cookie)
-            .bodyValue(CreateUserRequest(displayName = "New Person", avatarKey = "bear"))
+            .bodyValue(CreateUserRequest(displayName = "New Person", avatarKey = "bat"))
             .exchange()
             .expectStatus()
             .isForbidden
@@ -288,7 +303,7 @@ class AuthControllerTest {
                 .post()
                 .uri("/api/admin/users")
                 .cookie(SESSION_COOKIE_NAME, adminCookie)
-                .bodyValue(CreateUserRequest(displayName = "New Person", avatarKey = "bear", role = "member"))
+                .bodyValue(CreateUserRequest(displayName = "New Person", avatarKey = "bat", role = "member"))
                 .exchange()
                 .expectStatus()
                 .isCreated
@@ -362,7 +377,7 @@ class AuthControllerTest {
                 .post()
                 .uri("/api/admin/users")
                 .cookie(SESSION_COOKIE_NAME, adminCookie)
-                .bodyValue(CreateUserRequest(displayName = "Chosen", avatarKey = "owl", accessCode = "chosen-code"))
+                .bodyValue(CreateUserRequest(displayName = "Chosen", avatarKey = "ghost", accessCode = "chosen-code"))
                 .exchange()
                 .expectStatus()
                 .isCreated
@@ -398,7 +413,7 @@ class AuthControllerTest {
             .post()
             .uri("/api/admin/users")
             .cookie(SESSION_COOKIE_NAME, adminCookie)
-            .bodyValue(CreateUserRequest(displayName = "Dup", avatarKey = "owl", accessCode = "member-code"))
+            .bodyValue(CreateUserRequest(displayName = "Dup", avatarKey = "ghost", accessCode = "member-code"))
             .exchange()
             .expectStatus()
             .isEqualTo(409)
