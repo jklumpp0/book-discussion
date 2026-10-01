@@ -219,6 +219,7 @@ export function renderAdminPanel(admin) {
             <option value="member">member</option>
             <option value="admin">admin</option>
           </select>
+          <input name="accessCode" placeholder="Access code (optional)" autocomplete="off" />
           <button type="submit">Add user</button>
         </form>
         ${userError ? `<p class="form-error">${escapeHtml(userError)}</p>` : ''}
@@ -230,6 +231,7 @@ export function renderAdminPanel(admin) {
               <span class="admin-item-avatar">${avatarGlyph(u.avatarKey)}</span>
               <span class="admin-item-name">${escapeHtml(u.displayName)}</span>
               <span class="admin-item-role">${escapeHtml(u.role)}</span>
+              <input class="admin-code-input" data-code-for="${u.id}" placeholder="New code (optional)" autocomplete="off" />
               <button type="button" data-action="reset-user-code" data-user-id="${u.id}">Reset code</button>
               <button type="button" data-action="delete-user" data-user-id="${u.id}">Delete</button>
             </li>

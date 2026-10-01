@@ -28,6 +28,22 @@ private fun generateAccessCode(): String =
 
 private fun hashAccessCode(accessCode: String): String = BCrypt.withDefaults().hashToString(BCRYPT_COST, accessCode.toCharArray())
 
+private fun chosenOrGeneratedAccessCode(chosen: String?): String {
+    if (chosen.isNullOrBlank()) return generateAccessCode()
+    // BCrypt only accepts passwords up to 72 bytes.
+    if (chosen.toByteArray().size > 72) throw ResponseStatusException(HttpStatus.BAD_REQUEST, "accessCode too long")
+    return chosen
+}
+
+// Login logs in as the first user whose hash matches, so two users must never share a code.
+private fun UserRepository.requireCodeUnused(
+    accessCode: String,
+    exceptUserId: Int? = null,
+) {
+    val taken = findAll().any { it.id != exceptUserId && BCrypt.verifyer().verify(accessCode.toCharArray(), it.accessCodeHash).verified }
+    if (taken) throw ResponseStatusException(HttpStatus.CONFLICT, "accessCode already in use")
+}
+
 @RestController
 class AdminUserController(
     private val userRepository: UserRepository,
@@ -49,9 +65,10 @@ class AdminUserController(
         if (request.avatarKey !in AVATAR_KEYS) throw ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid avatarKey")
         if (request.role !in VALID_ROLES) throw ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid role")
 
-        val accessCode = generateAccessCode()
+        val accessCode = chosenOrGeneratedAccessCode(request.accessCode)
         val userId =
             withContext(Dispatchers.IO) {
+                userRepository.requireCodeUnused(accessCode)
                 userRepository.insert(
                     displayName = request.displayName,
                     avatarKey = request.avatarKey,
@@ -87,12 +104,14 @@ class AdminUserController(
     @PostMapping("/api/admin/users/{id}/reset-code")
     suspend fun resetCode(
         @PathVariable id: Int,
+        @RequestBody(required = false) request: ResetCodeRequest?,
         exchange: ServerWebExchange,
     ): ResetCodeResponse {
         exchange.requireCurrentUser().requireAdmin()
-        val accessCode = generateAccessCode()
+        val accessCode = chosenOrGeneratedAccessCode(request?.accessCode)
         withContext(Dispatchers.IO) {
             userRepository.findById(id) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+            userRepository.requireCodeUnused(accessCode, exceptUserId = id)
             userRepository.updateAccessCodeHash(id, hashAccessCode(accessCode))
             sessionRepository.deleteAllForUser(id)
         }

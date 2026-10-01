@@ -108,8 +108,10 @@ Never includes access codes or hashes.
 ### `POST /api/admin/users`
 Request (`avatarKey` must be one of the presets in `docs/AVATARS.md`, `role` one of `member`/`admin` — invalid values → `400`):
 ```json
-{ "displayName": "string", "avatarKey": "string", "role": "member" }
+{ "displayName": "string", "avatarKey": "string", "role": "member", "accessCode": "optional-admin-chosen-code" }
 ```
+`accessCode` is optional: omitted or blank → a random code is generated. A chosen code already used by another user → `409 Conflict`; longer than 72 bytes → `400`.
+
 Response `201 Created`:
 ```json
 { "id": 5, "displayName": "New Person", "avatarKey": "owl", "role": "member", "accessCode": "one-time-plaintext-code" }
@@ -120,7 +122,7 @@ Response `201 Created`:
 → `204 No Content`. Also invalidates that user's sessions.
 
 ### `POST /api/admin/users/{id}/reset-code`
-Generates a new access code, invalidating the old one and all of that user's active sessions.
+Sets a new access code, invalidating the old one and all of that user's active sessions. Optional request body `{ "accessCode": "string" }` chooses the code (same `409`/`400` rules as user creation); with no body or a blank code, a random one is generated.
 
 Response `200 OK`:
 ```json
@@ -184,4 +186,4 @@ Response `200 OK` with the updated topic.
 | 401 | No/invalid session |
 | 403 | Authenticated but not authorized (not the author, not an admin) |
 | 404 | Resource doesn't exist |
-| 409 | Conflict with current state (posting to a closed topic, editing a deleted message) |
+| 409 | Conflict with current state (posting to a closed topic, editing a deleted message, an admin-chosen access code already in use) |

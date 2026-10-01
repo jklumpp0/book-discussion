@@ -49,7 +49,8 @@ export const adminCreateUser = (payload) =>
 
 export const adminDeleteUser = (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' });
 
-export const adminResetUserCode = (id) => request(`/api/admin/users/${id}/reset-code`, { method: 'POST' });
+export const adminResetUserCode = (id, accessCode) =>
+  request(`/api/admin/users/${id}/reset-code`, { method: 'POST', body: JSON.stringify({ accessCode }) });
 
 export const adminListBooks = () => request('/api/admin/books');
 

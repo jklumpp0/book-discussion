@@ -333,6 +333,67 @@ class AuthControllerTest {
     }
 
     @Test
+    fun `admin can choose the access code when creating a user and when resetting it`() {
+        seedUser("Admin", "admin-code", role = "admin")
+        val adminCookie = login("admin-code")
+
+        val created =
+            client
+                .post()
+                .uri("/api/admin/users")
+                .cookie(SESSION_COOKIE_NAME, adminCookie)
+                .bodyValue(CreateUserRequest(displayName = "Chosen", avatarKey = "owl", accessCode = "chosen-code"))
+                .exchange()
+                .expectStatus()
+                .isCreated
+                .expectBody(CreateUserResponse::class.java)
+                .returnResult()
+                .responseBody ?: error("no body")
+        assertEquals("chosen-code", created.accessCode)
+        login("chosen-code")
+
+        val reset =
+            client
+                .post()
+                .uri("/api/admin/users/${created.id}/reset-code")
+                .cookie(SESSION_COOKIE_NAME, adminCookie)
+                .bodyValue(ResetCodeRequest(accessCode = "second-code"))
+                .exchange()
+                .expectStatus()
+                .isOk
+                .expectBody(ResetCodeResponse::class.java)
+                .returnResult()
+                .responseBody ?: error("no body")
+        assertEquals("second-code", reset.accessCode)
+        login("second-code")
+    }
+
+    @Test
+    fun `an admin-chosen access code already used by another user is rejected`() {
+        seedUser("Admin", "admin-code", role = "admin")
+        val memberId = seedUser("Member", "member-code")
+        val adminCookie = login("admin-code")
+
+        client
+            .post()
+            .uri("/api/admin/users")
+            .cookie(SESSION_COOKIE_NAME, adminCookie)
+            .bodyValue(CreateUserRequest(displayName = "Dup", avatarKey = "owl", accessCode = "member-code"))
+            .exchange()
+            .expectStatus()
+            .isEqualTo(409)
+
+        client
+            .post()
+            .uri("/api/admin/users/$memberId/reset-code")
+            .cookie(SESSION_COOKIE_NAME, adminCookie)
+            .bodyValue(ResetCodeRequest(accessCode = "admin-code"))
+            .exchange()
+            .expectStatus()
+            .isEqualTo(409)
+    }
+
+    @Test
     fun `admin can delete a user and their sessions`() {
         seedUser("Admin", "admin-code", role = "admin")
         val adminCookie = login("admin-code")

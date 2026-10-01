@@ -20,6 +20,7 @@ data class CreateUserRequest(
     val displayName: String,
     val avatarKey: String,
     val role: String = "member",
+    val accessCode: String? = null,
 )
 
 data class CreateUserResponse(
@@ -28,6 +29,10 @@ data class CreateUserResponse(
     val avatarKey: String,
     val role: String,
     val accessCode: String,
+)
+
+data class ResetCodeRequest(
+    val accessCode: String? = null,
 )
 
 data class ResetCodeResponse(

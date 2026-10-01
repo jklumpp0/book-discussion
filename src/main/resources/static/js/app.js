@@ -235,18 +235,22 @@ async function handleCreateUser(form) {
   const displayName = form.elements.displayName.value.trim();
   const avatarKey = form.elements.avatarKey.value;
   const role = form.elements.role.value;
+  const accessCode = form.elements.accessCode.value.trim() || undefined;
   if (!displayName) return;
   try {
-    const created = await api.adminCreateUser({ displayName, avatarKey, role });
+    const created = await api.adminCreateUser({ displayName, avatarKey, role, accessCode });
     state.admin.newUserCode = { displayName: created.displayName, accessCode: created.accessCode };
     state.admin.userError = null;
     await refreshAdminUsers();
     render();
-  } catch {
-    state.admin.userError = 'Could not create that user.';
+  } catch (err) {
+    state.admin.userError = accessCodeError(err) ?? 'Could not create that user.';
     render();
   }
 }
+
+const accessCodeError = (err) =>
+  err?.status === 409 ? 'That access code is already used by another user.' : err?.status === 400 ? 'That access code is too long.' : null;
 
 async function handleDeleteUser(userId) {
   if (!confirm('Delete this user? This cannot be undone.')) return;
@@ -256,9 +260,15 @@ async function handleDeleteUser(userId) {
 }
 
 async function handleResetUserCode(userId) {
-  const result = await api.adminResetUserCode(userId);
-  const user = state.admin.users.find((u) => u.id === userId);
-  state.admin.newUserCode = { displayName: user?.displayName ?? `User #${userId}`, accessCode: result.accessCode };
+  const accessCode = document.querySelector(`[data-code-for="${userId}"]`)?.value.trim() || undefined;
+  try {
+    const result = await api.adminResetUserCode(userId, accessCode);
+    const user = state.admin.users.find((u) => u.id === userId);
+    state.admin.newUserCode = { displayName: user?.displayName ?? `User #${userId}`, accessCode: result.accessCode };
+    state.admin.userError = null;
+  } catch (err) {
+    state.admin.userError = accessCodeError(err) ?? 'Could not reset that code.';
+  }
   render();
 }
 
